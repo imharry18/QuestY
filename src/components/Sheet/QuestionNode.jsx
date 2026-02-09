@@ -1,73 +1,96 @@
+'use client';
+
 import React from 'react';
-import { ExternalLink, Check, Trash2 } from 'lucide-react';
-import useSheetStore from '../../store/useSheetStore';
-import { cn } from '../../lib/utils';
-import confetti from 'canvas-confetti';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import useSheetStore from '@/store/useSheetStore';
+import { 
+  GripVertical, 
+  Trash2, 
+  ExternalLink,
+  Check
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-const QuestionNode = ({ question, topicId, subTopicId }) => {
-  const { toggleQuestion } = useSheetStore();
+const QuestionNode = ({ topicId, subTopicId, question }) => {
+  const { toggleQuestionDone, deleteQuestion } = useSheetStore();
 
-  const handleToggle = () => {
-    toggleQuestion(topicId, subTopicId, question.id);
-    
-    // Only fire confetti if we are marking it AS complete (not unchecking)
-    if (!question.completed) {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#2563EB', '#10B981', '#F59E0B']
-      });
-    }
-  };
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: question.id });
 
-  const getDifficultyColor = (diff) => {
-    switch(diff.toLowerCase()) {
-      case 'easy': return 'bg-green-100 text-green-700 border-green-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      case 'hard': return 'bg-red-100 text-red-700 border-red-200';
-      default: return 'bg-gray-100 text-gray-600 border-gray-200';
-    }
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
   };
 
   return (
-    <div className={cn(
-      "group flex items-center justify-between p-3 rounded-lg border transition-all duration-200 hover:shadow-sm",
-      question.completed ? "bg-gray-50 border-gray-200 opacity-75" : "bg-white border-gray-200"
-    )}>
-      <div className="flex items-center gap-3 flex-1">
-        {/* Custom Checkbox */}
-        <button
-          onClick={handleToggle}
-          className={cn(
-            "w-5 h-5 rounded border flex items-center justify-center transition-colors",
-            question.completed 
-              ? "bg-green-500 border-green-500 text-white" 
-              : "border-gray-300 hover:border-blue-500 bg-white"
-          )}
-        >
-          {question.completed && <Check size={14} strokeWidth={3} />}
-        </button>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "group flex items-center gap-3 p-2.5 rounded-lg border transition-all duration-200",
+        isDragging ? "opacity-50 bg-gray-50" : "bg-white dark:bg-gray-800/50 border-transparent hover:border-gray-200 dark:hover:border-gray-700 hover:shadow-sm"
+      )}
+    >
+      {/* Drag Handle */}
+      <button 
+        {...attributes} 
+        {...listeners}
+        className="touch-none text-gray-300 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing hover:text-gray-500"
+      >
+        <GripVertical size={14} />
+      </button>
 
-        <a 
-          href={question.link} 
-          target="_blank" 
-          rel="noreferrer" 
-          className={cn(
-            "text-sm font-medium hover:text-blue-600 transition-colors flex items-center gap-2",
-            question.completed ? "text-gray-500 line-through decoration-gray-400" : "text-gray-800"
-          )}
-        >
+      {/* Custom Checkbox */}
+      <button
+        onClick={() => toggleQuestionDone(topicId, subTopicId, question.id)}
+        className={cn(
+          "flex items-center justify-center h-5 w-5 rounded border transition-all duration-300",
+          question.done 
+            ? "bg-green-500 border-green-500 text-white shadow-[0_0_10px_rgba(34,197,94,0.4)]" 
+            : "border-gray-300 dark:border-gray-600 hover:border-blue-400 bg-transparent"
+        )}
+      >
+        {question.done && <Check size={12} strokeWidth={3} />}
+      </button>
+
+      {/* Title */}
+      <div className="flex-1 min-w-0 flex items-center gap-2">
+        <span className={cn(
+          "text-sm transition-all duration-300 truncate",
+          question.done 
+            ? "text-gray-400 line-through decoration-gray-400" 
+            : "text-gray-700 dark:text-gray-200 font-medium"
+        )}>
           {question.title}
-          <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400" />
-        </a>
+        </span>
+        
+        {/* External Link */}
+        {question.link && (
+          <a 
+            href={question.link} 
+            target="_blank" 
+            rel="noreferrer"
+            className="text-gray-400 hover:text-blue-500 transition-colors"
+          >
+            <ExternalLink size={12} />
+          </a>
+        )}
       </div>
 
-      <div className="flex items-center gap-3">
-        <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-semibold border uppercase tracking-wide", getDifficultyColor(question.difficulty))}>
-          {question.difficulty}
-        </span>
-      </div>
+      {/* Delete Action */}
+      <button 
+        onClick={() => deleteQuestion(topicId, subTopicId, question.id)}
+        className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-all"
+      >
+        <Trash2 size={14} />
+      </button>
     </div>
   );
 };

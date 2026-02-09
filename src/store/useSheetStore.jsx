@@ -1,131 +1,230 @@
 'use client';
+
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { arrayMove } from '@dnd-kit/sortable';
 
-// Initial Data to ensure the app doesn't look empty on first load
-const INITIAL_DATA = [
-  {
-    id: 'topic-1',
-    title: 'Arrays & Hashing',
-    progress: 0,
-    subTopics: [
-      {
-        id: 'sub-1',
-        title: 'Core Concepts',
-        questions: [
-          { id: 'q-1', title: 'Two Sum', difficulty: 'Easy', completed: false, link: 'https://leetcode.com/problems/two-sum/' },
-          { id: 'q-2', title: 'Contains Duplicate', difficulty: 'Easy', completed: false, link: 'https://leetcode.com/problems/contains-duplicate/' }
-        ]
-      }
-    ]
-  }
-];
+const DEFAULT_WORKSPACE_ID = 'ws-default';
+
+// Helper: Calculate progress for a specific topic
+const calculateTopicProgress = (topic) => {
+  if (!topic.subTopics?.length) return 0;
+  
+  let totalQuestions = 0;
+  let completedQuestions = 0;
+
+  topic.subTopics.forEach(sub => {
+    if (sub.questions) {
+      totalQuestions += sub.questions.length;
+      completedQuestions += sub.questions.filter(q => q.done).length;
+    }
+  });
+
+  return totalQuestions === 0 ? 0 : Math.round((completedQuestions / totalQuestions) * 100);
+};
 
 export const useSheetStore = create(
   persist(
     (set, get) => ({
-      sheetData: INITIAL_DATA,
+      // --- STATE ---
+      workspaces: [
+        {
+          id: DEFAULT_WORKSPACE_ID,
+          title: 'My First Workspace',
+          topics: []
+        }
+      ],
+      activeWorkspaceId: DEFAULT_WORKSPACE_ID,
       
-      // --- TOPIC ACTIONS ---
-      addTopic: (title) => set((state) => ({
-        sheetData: [...state.sheetData, { 
-          id: crypto.randomUUID(), 
-          title, 
-          progress: 0,
-          subTopics: [] 
-        }]
-      })),
+      // UI STATE
+      isSidebarOpen: false,
 
-      deleteTopic: (id) => set((state) => ({
-        sheetData: state.sheetData.filter((t) => t.id !== id)
-      })),
+      // --- ACTIONS ---
+      toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+      setSidebarOpen: (isOpen) => set({ isSidebarOpen: isOpen }),
 
-      reorderTopics: (activeId, overId) => set((state) => {
-        const oldIndex = state.sheetData.findIndex((t) => t.id === activeId);
-        const newIndex = state.sheetData.findIndex((t) => t.id === overId);
-        return { sheetData: arrayMove(state.sheetData, oldIndex, newIndex) };
+      // --- IMPORT / EXPORT ACTIONS (NEW) ---
+      importWorkspaces: (data) => {
+        // Basic validation to ensure it's a valid backup
+        if (!Array.isArray(data) || data.length === 0) {
+          throw new Error("Invalid backup file format.");
+        }
+        
+        set({
+          workspaces: data,
+          activeWorkspaceId: data[0].id // Switch to first workspace after import
+        });
+      },
+
+      // --- WORKSPACE ACTIONS ---
+      addWorkspace: (title) => set((state) => {
+        const newId = crypto.randomUUID();
+        return {
+          workspaces: [...state.workspaces, { id: newId, title, topics: [] }],
+          activeWorkspaceId: newId 
+        };
       }),
 
+      deleteWorkspace: (id) => set((state) => {
+        const newWorkspaces = state.workspaces.filter(w => w.id !== id);
+        let newActiveId = state.activeWorkspaceId;
+        if (id === state.activeWorkspaceId) {
+          newActiveId = newWorkspaces.length > 0 ? newWorkspaces[0].id : '';
+        }
+        return { workspaces: newWorkspaces, activeWorkspaceId: newActiveId };
+      }),
+
+      setActiveWorkspace: (id) => set({ activeWorkspaceId: id }),
+
+      updateWorkspaceTitle: (id, newTitle) => set((state) => ({
+        workspaces: state.workspaces.map(w => w.id === id ? { ...w, title: newTitle } : w)
+      })),
+
+      // --- TOPIC ACTIONS (Scoped to Active Workspace) ---
+      _updateActiveWorkspaceTopics: (updateFn) => set((state) => ({
+        workspaces: state.workspaces.map(ws => {
+          if (ws.id !== state.activeWorkspaceId) return ws;
+          return { ...ws, topics: updateFn(ws.topics) };
+        })
+      })),
+
+      getActiveWorkspace: () => {
+        const state = get();
+        return state.workspaces.find(w => w.id === state.activeWorkspaceId) || null;
+      },
+
+      addTopic: (title) => {
+        get()._updateActiveWorkspaceTopics((topics) => [
+          ...topics, 
+          { id: crypto.randomUUID(), title, progress: 0, subTopics: [] }
+        ]);
+      },
+
+      deleteTopic: (id) => {
+        get()._updateActiveWorkspaceTopics((topics) => topics.filter(t => t.id !== id));
+      },
+
+      updateTopicTitle: (id, newTitle) => {
+        get()._updateActiveWorkspaceTopics((topics) => 
+          topics.map(t => t.id === id ? { ...t, title: newTitle } : t)
+        );
+      },
+
+      reorderTopics: (activeId, overId) => {
+        get()._updateActiveWorkspaceTopics((topics) => {
+          const oldIndex = topics.findIndex((t) => t.id === activeId);
+          const newIndex = topics.findIndex((t) => t.id === overId);
+          return arrayMove(topics, oldIndex, newIndex);
+        });
+      },
+
       // --- SUB-TOPIC ACTIONS ---
-      addSubTopic: (topicId, title) => set((state) => ({
-        sheetData: state.sheetData.map((topic) => {
-          if (topic.id !== topicId) return topic;
-          return {
-            ...topic,
-            subTopics: [...topic.subTopics, { 
-              id: crypto.randomUUID(), 
-              title, 
-              questions: [] 
-            }]
-          };
-        })
-      })),
-
-      deleteSubTopic: (topicId, subTopicId) => set((state) => ({
-        sheetData: state.sheetData.map((topic) => {
-          if (topic.id !== topicId) return topic;
-          return {
-            ...topic,
-            subTopics: topic.subTopics.filter((st) => st.id !== subTopicId)
-          };
-        })
-      })),
-
-      // --- QUESTION ACTIONS (The Complex Part) ---
-      addQuestion: (topicId, subTopicId, questionData) => set((state) => ({
-        sheetData: state.sheetData.map((topic) => {
-          if (topic.id !== topicId) return topic;
-          return {
-            ...topic,
-            subTopics: topic.subTopics.map((sub) => {
-              if (sub.id !== subTopicId) return sub;
-              return {
-                ...sub,
-                questions: [...sub.questions, { 
-                  id: crypto.randomUUID(), 
-                  ...questionData, 
-                  completed: false 
-                }]
-              };
-            })
-          };
-        })
-      })),
-
-      toggleQuestion: (topicId, subTopicId, questionId) => {
-        set((state) => {
-          // 1. Update the question status
-          const newData = state.sheetData.map((topic) => {
+      addSubTopic: (topicId, title) => {
+        get()._updateActiveWorkspaceTopics((topics) => 
+          topics.map(topic => {
             if (topic.id !== topicId) return topic;
             return {
               ...topic,
-              subTopics: topic.subTopics.map((sub) => {
-                if (sub.id !== subTopicId) return sub;
+              subTopics: [...topic.subTopics, { id: crypto.randomUUID(), title, questions: [] }]
+            };
+          })
+        );
+      },
+
+      deleteSubTopic: (topicId, subTopicId) => {
+        get()._updateActiveWorkspaceTopics((topics) => 
+          topics.map(topic => {
+            if (topic.id !== topicId) return topic;
+            const updatedTopic = { 
+              ...topic, 
+              subTopics: topic.subTopics.filter(st => st.id !== subTopicId) 
+            };
+            updatedTopic.progress = calculateTopicProgress(updatedTopic);
+            return updatedTopic;
+          })
+        );
+      },
+
+      updateSubTopicTitle: (topicId, subTopicId, newTitle) => {
+        get()._updateActiveWorkspaceTopics((topics) => 
+          topics.map(topic => {
+            if (topic.id !== topicId) return topic;
+            return {
+              ...topic,
+              subTopics: topic.subTopics.map(st => st.id === subTopicId ? { ...st, title: newTitle } : st)
+            };
+          })
+        );
+      },
+
+      // --- QUESTION ACTIONS ---
+      addQuestion: (topicId, subTopicId, questionData) => {
+        get()._updateActiveWorkspaceTopics((topics) => 
+          topics.map(topic => {
+            if (topic.id !== topicId) return topic;
+            const updatedTopic = {
+              ...topic,
+              subTopics: topic.subTopics.map(st => {
+                if (st.id !== subTopicId) return st;
                 return {
-                  ...sub,
-                  questions: sub.questions.map((q) => 
-                    q.id === questionId ? { ...q, completed: !q.completed } : q
-                  )
+                  ...st,
+                  questions: [...st.questions, { 
+                    id: crypto.randomUUID(), 
+                    ...questionData, 
+                    done: false 
+                  }]
                 };
               })
             };
-          });
+            updatedTopic.progress = calculateTopicProgress(updatedTopic);
+            return updatedTopic;
+          })
+        );
+      },
 
-          // 2. Recalculate Progress for the Topic (Bonus Feature)
-          const updatedTopic = newData.find(t => t.id === topicId);
-          const allQuestions = updatedTopic.subTopics.flatMap(st => st.questions);
-          const completedCount = allQuestions.filter(q => q.completed).length;
-          const totalCount = allQuestions.length;
-          updatedTopic.progress = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100);
+      deleteQuestion: (topicId, subTopicId, questionId) => {
+        get()._updateActiveWorkspaceTopics((topics) => 
+          topics.map(topic => {
+            if (topic.id !== topicId) return topic;
+            const updatedTopic = {
+              ...topic,
+              subTopics: topic.subTopics.map(st => {
+                if (st.id !== subTopicId) return st;
+                return {
+                  ...st,
+                  questions: st.questions.filter(q => q.id !== questionId)
+                };
+              })
+            };
+            updatedTopic.progress = calculateTopicProgress(updatedTopic);
+            return updatedTopic;
+          })
+        );
+      },
 
-          return { sheetData: newData };
-        });
+      toggleQuestionDone: (topicId, subTopicId, questionId) => {
+        get()._updateActiveWorkspaceTopics((topics) => 
+          topics.map(topic => {
+            if (topic.id !== topicId) return topic;
+            const updatedTopic = {
+              ...topic,
+              subTopics: topic.subTopics.map(st => {
+                if (st.id !== subTopicId) return st;
+                return {
+                  ...st,
+                  questions: st.questions.map(q => q.id === questionId ? { ...q, done: !q.done } : q)
+                };
+              })
+            };
+            updatedTopic.progress = calculateTopicProgress(updatedTopic);
+            return updatedTopic;
+          })
+        );
       },
     }),
     {
-      name: 'questy-storage', // This key saves data to localStorage
-      skipHydration: true,    // Fixes Next.js hydration mismatch errors
+      name: 'questy-storage-v4', // Version bump to force fresh storage structure
+      storage: createJSONStorage(() => localStorage),
     }
   )
 );

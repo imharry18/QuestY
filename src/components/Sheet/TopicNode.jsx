@@ -1,6 +1,14 @@
+'use client';
+
 import React, { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { 
+  SortableContext, 
+  verticalListSortingStrategy 
+} from '@dnd-kit/sortable';
+import SubTopicNode from './SubTopicNode';
+import useSheetStore from '@/store/useSheetStore';
 import { 
   GripVertical, 
   Trash2, 
@@ -9,132 +17,138 @@ import {
   Plus, 
   FolderOpen 
 } from 'lucide-react';
-import useSheetStore from '../../store/useSheetStore';
-import { cn } from '../../lib/utils';
-import SubTopicNode from './SubTopicNode';
+import { cn } from '@/lib/utils';
 
 const TopicNode = ({ topic }) => {
+  const { deleteTopic, updateTopicTitle, addSubTopic } = useSheetStore();
   const [isExpanded, setIsExpanded] = useState(true);
-  const { deleteTopic, addSubTopic } = useSheetStore();
-  
-  // --- dnd-kit Hook for Dragging ---
-  const { 
-    attributes, 
-    listeners, 
-    setNodeRef, 
-    transform, 
+  const [isEditing, setIsEditing] = useState(false);
+  const [newSubTopicTitle, setNewSubTopicTitle] = useState("");
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
     transition,
-    isDragging 
+    isDragging,
   } = useSortable({ id: topic.id });
 
-  // Apply drag styles (transform + transition)
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 50 : "auto", 
-    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : 'auto',
   };
 
+  const handleAddSubTopic = (e) => {
+    e.preventDefault();
+    if (!newSubTopicTitle.trim()) return;
+    addSubTopic(topic.id, newSubTopicTitle);
+    setNewSubTopicTitle("");
+    setIsExpanded(true);
+  };
+
+  // Calculate Progress
+  const totalQuestions = topic.subTopics?.reduce((acc, st) => acc + (st.questions?.length || 0), 0) || 0;
+  const completedQuestions = topic.subTopics?.reduce((acc, st) => acc + (st.questions?.filter(q => q.done).length || 0), 0) || 0;
+  const progress = totalQuestions === 0 ? 0 : Math.round((completedQuestions / totalQuestions) * 100);
+
   return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
+    <div
+      ref={setNodeRef}
+      style={style}
       className={cn(
-        "bg-white rounded-xl border border-gray-200 shadow-sm transition-all duration-200 group",
-        isDragging && "shadow-xl ring-2 ring-blue-500/20 rotate-1"
+        "group relative rounded-2xl border transition-all duration-300",
+        isDragging 
+          ? "bg-blue-50/80 border-blue-200 shadow-xl scale-105 rotate-1 z-50" 
+          : "bg-white dark:bg-gray-900 border-gray-200 dark:border-white/10 hover:border-blue-400/50 hover:shadow-lg"
       )}
     >
-      {/* --- Topic Header --- */}
-      <div className="p-4 flex items-center gap-3">
+      {/* Topic Header */}
+      <div className="flex items-center gap-3 p-4">
         {/* Drag Handle */}
-        <div 
-          {...attributes} 
-          {...listeners} 
-          className="cursor-grab text-gray-300 hover:text-gray-600 p-1 rounded hover:bg-gray-100 transition-colors focus:outline-none"
-          aria-label="Drag topic"
-        >
-          <GripVertical size={20} />
-        </div>
-
-        {/* Expand/Collapse Toggle */}
         <button 
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50 transition-colors focus:outline-none"
+          {...attributes} 
+          {...listeners}
+          className="touch-none p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-grab active:cursor-grabbing rounded-md hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
         >
-          {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+          <GripVertical size={18} />
         </button>
 
-        {/* Title & Progress Info */}
+        {/* Expand/Collapse */}
+        <button 
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
+        >
+          {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+        </button>
+
+        {/* Title & Progress */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-1">
-            <h2 className="text-lg font-bold text-gray-800 truncate select-none">
-              {topic.title}
-            </h2>
-            <span className={cn(
-              "text-[10px] px-2 py-0.5 rounded-full font-bold border uppercase tracking-wider",
-              topic.progress === 100 
-                ? "bg-green-100 text-green-700 border-green-200" 
-                : "bg-gray-100 text-gray-600 border-gray-200"
-            )}>
-              {topic.progress}% Done
-            </span>
-          </div>
-          
-          {/* Animated Progress Bar */}
-          <div className="h-1.5 w-full max-w-xs bg-gray-100 rounded-full overflow-hidden">
-            <div 
-              className={cn(
-                "h-full transition-all duration-700 ease-out",
-                topic.progress === 100 ? "bg-green-500" : "bg-blue-600"
-              )}
-              style={{ width: `${topic.progress}%` }}
+            <input
+              value={topic.title}
+              onChange={(e) => updateTopicTitle(topic.id, e.target.value)}
+              className="bg-transparent font-bold text-lg text-gray-900 dark:text-white outline-none focus:text-blue-600 dark:focus:text-blue-400 w-full"
+              placeholder="Topic Name"
             />
           </div>
+          {/* Subtle Progress Bar */}
+          <div className="flex items-center gap-2">
+            <div className="h-1.5 w-24 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-blue-500 rounded-full transition-all duration-500" 
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <span className="text-xs text-gray-400 font-medium">{progress}% Done</span>
+          </div>
         </div>
 
-        {/* Actions (Visible on Group Hover) */}
-        <div className="flex items-center gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-          <button 
-            onClick={() => addSubTopic(topic.id, "New Sub-Topic")}
-            className="flex items-center gap-1.5 text-xs font-medium text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors"
-          >
-            <Plus size={14} /> 
-            <span className="hidden sm:inline">Add Sub-Topic</span>
-          </button>
-          
-          <button 
-            onClick={() => deleteTopic(topic.id)}
-            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            title="Delete Topic"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
+        {/* Delete Button */}
+        <button 
+          onClick={() => deleteTopic(topic.id)}
+          className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
+        >
+          <Trash2 size={18} />
+        </button>
       </div>
 
-      {/* --- Sub-Topics Container --- */}
+      {/* Expanded Content */}
       {isExpanded && (
-        <div className="border-t border-gray-100 bg-gray-50/50 p-4 min-h-[100px] flex flex-col gap-3 animate-in slide-in-from-top-2 duration-200">
-          {topic.subTopics.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-lg bg-white/50">
-              <FolderOpen size={32} className="mb-2 opacity-30" />
-              <p className="text-sm font-medium">No sub-topics yet</p>
-              <button 
-                onClick={() => addSubTopic(topic.id, "Core Concepts")}
-                className="mt-1 text-xs text-blue-500 hover:underline"
-              >
-                Create one now
-              </button>
+        <div className="border-t border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-black/20 p-4 rounded-b-2xl space-y-4">
+          
+          <SortableContext 
+            items={topic.subTopics?.map(st => st.id) || []} 
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-4">
+              {topic.subTopics?.map((subTopic) => (
+                <SubTopicNode key={subTopic.id} topicId={topic.id} subTopic={subTopic} />
+              ))}
             </div>
-          ) : (
-            topic.subTopics.map((sub) => (
-              <SubTopicNode 
-                key={sub.id} 
-                subTopic={sub} 
-                topicId={topic.id} 
-              />
-            ))
-          )}
+          </SortableContext>
+
+          {/* Add SubTopic Input */}
+          <form onSubmit={handleAddSubTopic} className="flex items-center gap-2 pl-2 group/input">
+             <div className="p-1.5 bg-gray-200 dark:bg-gray-800 rounded-md text-gray-500">
+               <FolderOpen size={14} />
+             </div>
+             <input
+               type="text"
+               placeholder="Add a sub-topic (e.g. 'Standard Problems')"
+               value={newSubTopicTitle}
+               onChange={(e) => setNewSubTopicTitle(e.target.value)}
+               className="flex-1 bg-transparent text-sm px-2 py-1.5 outline-none text-gray-700 dark:text-gray-300 placeholder-gray-400"
+             />
+             <button 
+               type="submit" 
+               disabled={!newSubTopicTitle.trim()}
+               className="p-1.5 bg-gray-900 dark:bg-white text-white dark:text-black rounded-md opacity-0 group-focus-within/input:opacity-100 transition-all disabled:opacity-0 scale-90 hover:scale-100"
+             >
+               <Plus size={14} />
+             </button>
+          </form>
         </div>
       )}
     </div>
