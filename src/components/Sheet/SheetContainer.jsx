@@ -26,7 +26,9 @@ const SheetContainer = () => {
 
   // Get the data from the ACTIVE workspace
   const activeWorkspace = getActiveWorkspace();
-  const sheetData = activeWorkspace ? activeWorkspace.topics : [];
+const sheetData = Array.isArray(activeWorkspace?.topics)
+  ? activeWorkspace.topics
+  : [];
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
