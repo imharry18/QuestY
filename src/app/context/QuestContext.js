@@ -16,7 +16,6 @@ const INITIAL_PROGRESS = {
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Explorer'
   },
   stats: [
-    { id: 'streak', label: 'CURRENT STREAK', value: 0, icon: 'Flame', color: 'text-orange-500' },
     { id: 'solved', label: 'PROBLEMS SOLVED', value: 0, icon: 'CheckCircle2', color: 'text-green-500' },
     { id: 'quizzes', label: 'QUIZZES GIVEN', value: 0, icon: 'Trophy', color: 'text-yellow-500' },
     { id: 'docs', label: 'DOCS READ', value: 0, icon: 'FileText', color: 'text-blue-400' },
@@ -196,7 +195,6 @@ export function QuestProvider({ children }) {
       const newStats = prev.stats.map(s => {
         if (item?.type === 'problem' && s.id === 'solved') return { ...s, value: s.value + 1 };
         if (item?.type === 'note' && s.id === 'docs') return { ...s, value: s.value + 1 };
-        if (isFirstActivityToday && s.id === 'streak') return { ...s, value: s.value + 1 };
         return s;
       });
 
@@ -250,7 +248,6 @@ export function QuestProvider({ children }) {
 
       const newStats = prev.stats.map(s => {
         if (s.id === 'quizzes') return { ...s, value: s.value + 1 };
-        if (isFirstActivityToday && s.id === 'streak') return { ...s, value: s.value + 1 };
         return s;
       });
 

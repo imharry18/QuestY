@@ -55,7 +55,7 @@ export default function Dashboard() {
           </div>
 
           {/* Stats Section */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
             {stats.map((stat) => {
               const Icon = { Flame, CheckCircle2, Trophy, FileText }[stat.icon] || Flame;
               return (
@@ -68,7 +68,6 @@ export default function Dashboard() {
                     <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest mb-1">{stat.label}</p>
                     <div className="flex items-baseline gap-1">
                       <span className="text-2xl font-bold tracking-tighter">{stat.value}</span>
-                      {stat.id === 'streak' && <span className="text-[10px] font-bold text-white/40">DAYS</span>}
                     </div>
                   </div>
                   <div className={`w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center ${stat.color} group-hover:scale-110 transition-transform`}>
