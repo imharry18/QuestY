@@ -39,14 +39,6 @@ export default function Dashboard() {
         </div>
         
         <div className="flex items-center gap-6">
-          <div className="relative hidden lg:block">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
-            <input 
-              type="text" 
-              placeholder="Search problems..." 
-              className="bg-white/5 border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm w-64 focus:outline-none focus:border-white/30 transition-all"
-            />
-          </div>
           <Bell className="w-5 h-5 text-white/40 hover:text-white cursor-pointer transition-colors" />
           <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full border border-white/20 cursor-pointer overflow-hidden">
             <img src={user.avatar} alt="Avatar" className="w-full h-full" />
@@ -86,9 +78,9 @@ export default function Dashboard() {
               );
             })}
           </div>
-          <div className="grid lg:grid-cols-4 gap-8 mb-16">
-            {/* Heatmap Column (Left - 3/4 Width) */}
-            <div className="lg:col-span-3">
+          <div className="grid grid-cols-1 gap-8 mb-16">
+            {/* Heatmap Column (Full Width) */}
+            <div className="w-full">
               <section className="premium-glass p-6 h-full flex flex-col justify-between">
                 {(() => {
                   // Build a proper LeetCode-style continuous calendar for the last ~26 weeks
@@ -175,30 +167,6 @@ export default function Dashboard() {
               </section>
             </div>
 
-            {/* Stats Column (Right - 1/4 Width) */}
-            <div className="lg:col-span-1">
-              <div className="premium-glass p-8 h-full flex flex-col items-center justify-center text-center">
-                <Trophy className="w-12 h-12 text-yellow-500/60 mb-6" />
-                <p className="text-5xl font-bold tracking-tighter mb-2">
-                  {data.quizPerformance?.total > 0 
-                    ? Math.floor((data.quizPerformance.correct / data.quizPerformance.total) * 100) 
-                    : 0}%
-                </p>
-                <p className="text-xs font-bold text-white/20 uppercase tracking-[0.3em]">Overall Quiz Score</p>
-                <div className="mt-8 pt-8 border-t border-white/5 w-full">
-                  <div className="flex justify-between text-[10px] font-bold text-white/10 uppercase mb-4">
-                    <span>Performance</span>
-                    <span className="text-white/30">Mastery</span>
-                  </div>
-                  <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${data.quizPerformance?.total > 0 ? (data.quizPerformance.correct / data.quizPerformance.total) * 100 : 0}%` }}
-                      className="h-full bg-yellow-500/40"
-                    ></motion.div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
 
