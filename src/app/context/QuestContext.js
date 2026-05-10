@@ -170,6 +170,8 @@ export function QuestProvider({ children }) {
   // ── Progress Actions (Updates LocalStorage) ──
   const markItemComplete = (subjectId, topicId, itemId) => {
     setData(prev => {
+      const isFirstActivityToday = prev.activity[prev.activity.length - 1] === 0;
+      
       // 1. Mark Item Complete
       const newCompletedItems = {
         ...prev.completedItems,
@@ -186,7 +188,7 @@ export function QuestProvider({ children }) {
       const topic = (prev.topics[subjectId] || []).find(t => t.id === topicId);
       const item = topic?.items?.find(it => it.id === itemId);
 
-      // 3. Update Activity Dot (Increment today's score)
+      // 3. Update Activity Dot
       const newActivity = [...prev.activity];
       newActivity[newActivity.length - 1] += 1;
 
@@ -194,6 +196,7 @@ export function QuestProvider({ children }) {
       const newStats = prev.stats.map(s => {
         if (item?.type === 'problem' && s.id === 'solved') return { ...s, value: s.value + 1 };
         if (item?.type === 'note' && s.id === 'docs') return { ...s, value: s.value + 1 };
+        if (isFirstActivityToday && s.id === 'streak') return { ...s, value: s.value + 1 };
         return s;
       });
 
@@ -239,14 +242,28 @@ export function QuestProvider({ children }) {
   };
 
   const addQuiz = (isCorrect = true) => {
-    setData(prev => ({
-      ...prev,
-      stats: prev.stats.map(s => s.id === 'quizzes' ? { ...s, value: s.value + 1 } : s),
-      quizPerformance: {
-        correct: prev.quizPerformance.correct + (isCorrect ? 1 : 0),
-        total: prev.quizPerformance.total + 1
-      }
-    }));
+    setData(prev => {
+      const isFirstActivityToday = prev.activity[prev.activity.length - 1] === 0;
+      
+      const newActivity = [...prev.activity];
+      newActivity[newActivity.length - 1] += 1;
+
+      const newStats = prev.stats.map(s => {
+        if (s.id === 'quizzes') return { ...s, value: s.value + 1 };
+        if (isFirstActivityToday && s.id === 'streak') return { ...s, value: s.value + 1 };
+        return s;
+      });
+
+      return {
+        ...prev,
+        stats: newStats,
+        activity: newActivity,
+        quizPerformance: {
+          correct: prev.quizPerformance.correct + (isCorrect ? 1 : 0),
+          total: prev.quizPerformance.total + 1
+        }
+      };
+    });
   };
 
   return (
