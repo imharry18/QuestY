@@ -168,20 +168,42 @@ export function QuestProvider({ children }) {
   };
 
   // ── Progress Actions (Updates LocalStorage) ──
-  const markItemComplete = (subjectId, topicId, itemKey) => {
-    setData(prev => ({
-      ...prev,
-      completedItems: {
+  const markItemComplete = (subjectId, topicId, itemId) => {
+    setData(prev => {
+      // 1. Mark Item Complete
+      const newCompletedItems = {
         ...prev.completedItems,
         [subjectId]: {
           ...(prev.completedItems[subjectId] || {}),
           [topicId]: {
             ...((prev.completedItems[subjectId] || {})[topicId] || {}),
-            [itemKey]: true,
+            [itemId]: true,
           },
         },
-      },
-    }));
+      };
+
+      // 2. Determine Item Type for Stats
+      const topic = (prev.topics[subjectId] || []).find(t => t.id === topicId);
+      const item = topic?.items?.find(it => it.id === itemId);
+
+      // 3. Update Activity Dot (Increment today's score)
+      const newActivity = [...prev.activity];
+      newActivity[newActivity.length - 1] += 1;
+
+      // 4. Update Header Stats
+      const newStats = prev.stats.map(s => {
+        if (item?.type === 'problem' && s.id === 'solved') return { ...s, value: s.value + 1 };
+        if (item?.type === 'note' && s.id === 'docs') return { ...s, value: s.value + 1 };
+        return s;
+      });
+
+      return {
+        ...prev,
+        completedItems: newCompletedItems,
+        activity: newActivity,
+        stats: newStats
+      };
+    });
   };
 
   const unmarkItemComplete = (subjectId, topicId, itemKey) => {
