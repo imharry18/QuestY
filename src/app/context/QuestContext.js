@@ -12,19 +12,19 @@ const genId = () => Math.random().toString(36).substr(2, 9);
 const INITIAL_PROGRESS = {
   user: {
     name: '',
-    rank: 'Top 2%',
+    rank: 'Unranked',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Explorer'
   },
   stats: [
-    { id: 'streak', label: 'CURRENT STREAK', value: 12, icon: 'Flame', color: 'text-orange-500' },
-    { id: 'solved', label: 'PROBLEMS SOLVED', value: 432, icon: 'CheckCircle2', color: 'text-green-500' },
-    { id: 'quizzes', label: 'QUIZZES GIVEN', value: 28, icon: 'Trophy', color: 'text-yellow-500' },
-    { id: 'docs', label: 'DOCS READ', value: 85, icon: 'FileText', color: 'text-blue-400' },
+    { id: 'streak', label: 'CURRENT STREAK', value: 0, icon: 'Flame', color: 'text-orange-500' },
+    { id: 'solved', label: 'PROBLEMS SOLVED', value: 0, icon: 'CheckCircle2', color: 'text-green-500' },
+    { id: 'quizzes', label: 'QUIZZES GIVEN', value: 0, icon: 'Trophy', color: 'text-yellow-500' },
+    { id: 'docs', label: 'DOCS READ', value: 0, icon: 'FileText', color: 'text-blue-400' },
   ],
   completedTopics: {},
   completedItems: {},
-  quizPerformance: { correct: 112, total: 140 },
-  activity: Array.from({ length: 365 }).map(() => Math.floor(Math.random() * 5))
+  quizPerformance: { correct: 0, total: 0 },
+  activity: Array.from({ length: 365 }).map(() => 0)
 };
 
 export function QuestProvider({ children }) {
